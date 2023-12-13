@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.8.6;
+pragma solidity =0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
-import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -17,7 +13,7 @@ import "./interfaces/IBlacklist.sol";
 
 import "./extensions/WerentSignature.sol";
 
-contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1155Holder, Initializable {
+contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Holder, Initializable {
     using SafeERC20Upgradeable for ERC20Upgradeable;
     address payable public admin;
     address payable private beneficiary;
@@ -40,6 +36,7 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
         bytes4 nftPrice;
         uint8 lentAmount;
         bool useNativeToken;
+        bytes32 category;
     }
 
     // single storage slot: 160 bits, 168, 200
@@ -68,6 +65,7 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
         uint256[] lendingIds;
         uint8[] rentDurations;
         bool[] useNativeTokens;
+        bytes32[] category;
         DiscountSignature[] discountSignatures;
     }
 
@@ -129,7 +127,8 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
         uint8[] memory _maxRentDurations,
         bytes4[] memory _dailyRentPrices,
         bytes4[] memory _nftPrices,
-        bool[] memory _useNativeTokens
+        bool[] memory _useNativeTokens,
+        bytes32[] memory  _category
     ) external override notPaused notBlacklisted {
         bundleCall(
             handleLend,
@@ -140,7 +139,8 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
                 _maxRentDurations,
                 _dailyRentPrices,
                 _nftPrices,
-                _useNativeTokens
+                _useNativeTokens,
+                _category
             )
         );
     }
@@ -211,7 +211,7 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
             (bool success, ) = beneficiary.call{ value: fee }("");
             require(success, "Failed to send Ether");
         } else {
-            extraTokenAddress.safeTransfer(beneficiary, fee);
+            extraTokenAddress.transfer(beneficiary, fee);
         }
     }
 
@@ -265,8 +265,8 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
             (bool successRenter, ) = renterAddress.call{ value: sendRenterAmt }("");
             require(successRenter, "Failed to send Ether");
         } else {
-            extraTokenAddress.safeTransfer(lenderAddress, sendLenderAmt);
-            extraTokenAddress.safeTransfer(renterAddress, sendRenterAmt);
+            extraTokenAddress.transfer(lenderAddress, sendLenderAmt);
+            extraTokenAddress.transfer(renterAddress, sendRenterAmt);
         }
 
         return sendLenderAmt += takenFee;
@@ -298,7 +298,7 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
             (bool successRenter, ) = lenderAddress.call{ value: finalAmt - takenFee }("");
             require(successRenter, "Failed to send Ether");
         } else {
-            extraTokenAddress.safeTransfer(_lendingRenting.lending.lenderAddress, finalAmt - takenFee);
+            extraTokenAddress.transfer(_lendingRenting.lending.lenderAddress, finalAmt - takenFee);
         }
 
         return (maxRentPayment - takenFee);
@@ -349,7 +349,8 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
                 maxRentDuration: _cd.maxRentDurations[i],
                 dailyRentPrice: _cd.dailyRentPrices[i],
                 nftPrice: _cd.nftPrices[i],
-                useNativeToken: _cd.useNativeTokens[i]
+                useNativeToken: _cd.useNativeTokens[i],
+                category: _cd.category[i]
             });
 
             emit Lent(
@@ -362,7 +363,8 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
                 _cd.dailyRentPrices[i],
                 _cd.nftPrices[i],
                 nftIs721,
-                _cd.useNativeTokens[i]
+                _cd.useNativeTokens[i],
+                _cd.category[i]
             );
 
             lendingId++;
@@ -404,7 +406,7 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
                 if (useNativeToken) {
                     require(msg.value == rentPrice + nftPrice, "Value to pay not enough");
                 } else {
-                    extraTokenAddress.safeTransferFrom(msg.sender, address(this), rentPrice + nftPrice);
+                    extraTokenAddress.transferFrom(msg.sender, address(this), rentPrice + nftPrice);
                 }
             }
 
@@ -525,7 +527,8 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
         uint8[] memory _maxRentDurations,
         bytes4[] memory _dailyRentPrices,
         bytes4[] memory _nftPrices,
-        bool[] memory _useNativeTokens
+        bool[] memory _useNativeTokens,
+        bytes32[] memory _category
     ) private pure returns (CallData memory cd) {
         cd = CallData({
             left: 0,
@@ -539,7 +542,8 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
             dailyRentPrices: _dailyRentPrices,
             nftPrices: _nftPrices,
             useNativeTokens: _useNativeTokens,
-            discountSignatures: new DiscountSignature[](0)
+            discountSignatures: new DiscountSignature[](0),
+            category: _category
         });
     }
 
@@ -561,7 +565,8 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
             dailyRentPrices: new bytes4[](0),
             nftPrices: new bytes4[](0),
             useNativeTokens: new bool[](0),
-            discountSignatures: new DiscountSignature[](0)
+            discountSignatures: new DiscountSignature[](0),
+            category: new  bytes32[](0)
         });
     }
 
@@ -582,7 +587,8 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
             dailyRentPrices: new bytes4[](0),
             nftPrices: new bytes4[](0),
             useNativeTokens: new bool[](0),
-            discountSignatures: new DiscountSignature[](0)
+            discountSignatures: new DiscountSignature[](0),
+            category: new  bytes32[](0)
         });
     }
 
@@ -604,7 +610,8 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
             dailyRentPrices: new bytes4[](0),
             nftPrices: new bytes4[](0),
             useNativeTokens: new bool[](0),
-            discountSignatures: _discountSignature
+            discountSignatures: _discountSignature,
+            category: new  bytes32[](0)
         });
     }
 
@@ -792,7 +799,7 @@ contract WeRent is WerentSignature, IWeRent, ERC721Holder, ERC1155Receiver, ERC1
             require(success, "Failed to send Ether");
         } else {
             withdrawBalance = extraTokenAddress.balanceOf(address(this));
-            extraTokenAddress.safeTransfer(_beneficiary, withdrawBalance);
+            extraTokenAddress.transfer(_beneficiary, withdrawBalance);
         }
     }
 

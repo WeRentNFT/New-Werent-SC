@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.8.6;
+pragma solidity =0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -13,7 +13,7 @@ contract Blacklist is IBlacklist, Initializable, PausableUpgradeable, OwnableUpg
 
     function initialize() public initializer {
         __Pausable_init();
-        __Ownable_init();
+        __Ownable_init(address(msg.sender));
     }
 
     function setBlacklist(address _account) external override onlyOwner whenNotPaused {

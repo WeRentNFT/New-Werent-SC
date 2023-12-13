@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.8.6;
+pragma solidity =0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 interface IWeRent is IERC721Receiver, IERC1155Receiver {
     event Lent(
@@ -20,7 +19,7 @@ interface IWeRent is IERC721Receiver, IERC1155Receiver {
         bytes4 nftPrice,
         bool isERC721,
         bool useNativeToken,
-        bytes32 categories
+        bytes32 category
     );
 
     event Rented(uint256 lendingId, address indexed renterAddress, uint8 rentDuration, uint32 rentedAt);
@@ -61,7 +60,7 @@ interface IWeRent is IERC721Receiver, IERC1155Receiver {
         bytes4[] memory _dailyRentPrice,
         bytes4[] memory _nftPrice,
         bool[] memory _useNativeToken,
-        bytes32[] memory _categories
+        bytes32[] memory  _category
     ) external;
 
     /**
